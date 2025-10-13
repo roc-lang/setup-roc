@@ -5,7 +5,7 @@
 
 # Setup Roc
 
-A GitHub Action to download and setup the Roc compiler for Linux x86_64.
+A GitHub Action to download and setup the Roc compiler for Linux and macOS.
 
 ## Usage
 
@@ -17,16 +17,22 @@ TODO
 
 ## Platform Support
 
-This action currently supports:
-- **OS**: Linux
-- **Architecture**: x86_64
+This action supports the following platforms:
+
+| OS | Architecture | Status |
+|----|--------------|--------|
+| Linux | x86_64 | ✅ |
+| Linux | arm64 | ✅ |
+| macOS | x86_64 (Intel) | ✅ |
+| macOS | arm64 (Apple Silicon) | ✅ |
 
 ## What it does
 
-1. Downloads the Roc compiler (`roc-linux_x86_64-alpha4-rolling.tar.gz`) from the official releases
-2. Verifies the SHA256 checksum to ensure file integrity
-3. Extracts the compiler
-4. Adds the Roc executable to the PATH
+1. Detects your operating system and architecture
+2. Downloads the appropriate Roc compiler release for your platform
+3. Verifies the SHA256 checksum to ensure file integrity
+4. Extracts the compiler
+5. Adds the Roc executable to the PATH
 
 ## Security
 
