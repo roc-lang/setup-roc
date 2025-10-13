@@ -5,10 +5,11 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }} ${{ matrix.arch }}
+    name: Test ${{ matrix.version }} on ${{ matrix.os }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
+        version: [alpha4-rolling, nightly]
         include:
           - os: Linux
             arch: x86_64
@@ -29,6 +30,8 @@ jobs:
 
       - name: Setup Roc
         uses: ./
+        with:
+          version: ${{ matrix.version }}
 
       - name: Check Roc version
         run: roc version
