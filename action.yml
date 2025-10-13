@@ -68,7 +68,7 @@ runs:
         esac
 
         # Download Roc
-        DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/alpha4-rolling/roc-${PLATFORM}-alpha4-rolling.tar.gz"
+        DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/alpha4-rolling/roc-${PLATFORM}-alpha3-rolling.tar.gz"
         echo "Downloading Roc for $PLATFORM..."
         curl -fsSL -o roc.tar.gz "$DOWNLOAD_URL"
 
