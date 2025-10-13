@@ -14,7 +14,7 @@ Add this step to your CI workflow:
 ### Using Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@TODO
+- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
   with:
     version: nightly
 ```
@@ -22,7 +22,7 @@ Add this step to your CI workflow:
 ### Using Major Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@TODO
+- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
   with:
     version: alpha4-rolling
 ```
