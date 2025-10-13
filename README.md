@@ -11,20 +11,21 @@ A GitHub Action to download and setup the Roc compiler for Linux and macOS.
 
 Add this step to your CI workflow:
 
-### Using Nightly Releases
-
-```yaml
-- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
-  with:
-    version: nightly
-```
-
 ### Using Major Releases
 
 ```yaml
 - uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
   with:
     version: alpha4-rolling
+```
+> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the included release sha256 hashes can not be altered if a github account with access to this repo is hacked.  
+
+### Using Nightly Releases
+
+```yaml
+- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
+  with:
+    version: nightly
 ```
 
 ## Platform Support
