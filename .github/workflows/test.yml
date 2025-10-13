@@ -1,0 +1,43 @@
+name: Test Action
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+          - os: Linux
+            arch: arm64
+            runner: ubuntu-24.04-arm64
+          - os: macOS
+            arch: x86_64
+            runner: macos-15-intel
+          - os: macOS
+            arch: arm64
+            runner: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Roc
+        uses: ./
+
+      - name: Check Roc version
+        run: roc version
+
+      - name: Download HelloWorld example
+        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/main/examples/HelloWorld/main.roc
+
+      - name: Run HelloWorld example
+        run: roc main.roc
