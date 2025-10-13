@@ -18,7 +18,7 @@ Add this step to your CI workflow:
   with:
     version: alpha4-rolling
 ```
-> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the included release sha256 hashes can not be altered if a github account with access to this repo is hacked.  
+> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the included alpha4 release sha256 hashes can not be altered if a github account with access to this repo is hacked.  
 
 ### Using Nightly Releases
 
