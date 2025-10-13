@@ -11,8 +11,20 @@ A GitHub Action to download and setup the Roc compiler for Linux and macOS.
 
 Add this step to your CI workflow:
 
+### Using Nightly Releases
+
 ```yaml
-TODO
+- uses: roc-lang/setup-roc@TODO
+  with:
+    version: nightly
+```
+
+### Using Major Releases
+
+```yaml
+- uses: roc-lang/setup-roc@TODO
+  with:
+    version: alpha4-rolling
 ```
 
 ## Platform Support
@@ -30,10 +42,12 @@ This action supports the following platforms:
 
 1. Detects your operating system and architecture
 2. Downloads the appropriate Roc compiler release for your platform
-3. Verifies the SHA256 checksum to ensure file integrity
+3. Verifies the SHA256 checksum to ensure file integrity (skipped for nightly releases)
 4. Extracts the compiler
 5. Adds the Roc executable to the PATH
 
 ## Security
 
-The action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.
+For major releases, the action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.
+
+For nightly releases, SHA256 verification is skipped since the files are updated regularly.

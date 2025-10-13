@@ -4,6 +4,11 @@ branding:
   icon: 'download'
   color: 'purple'
 
+inputs:
+  version:
+    description: 'Version of Roc to install (e.g., "nightly", "alpha4-rolling")'
+    required: true
+
 runs:
   using: 'composite'
   steps:
@@ -11,6 +16,9 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
+        VERSION="${{ inputs.version }}"
+        echo "Installing Roc version: $VERSION"
 
         # Detect OS and architecture
         OS=$(uname -s)
@@ -68,23 +76,35 @@ runs:
         esac
 
         # Download Roc
-        DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/alpha4-rolling/roc-${PLATFORM}-alpha4-rolling.tar.gz"
+        if [[ "$VERSION" == "nightly" ]]; then
+          DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/nightly/roc_nightly-${PLATFORM}-latest.tar.gz"
+          SKIP_SHA_CHECK=true
+          DIR_PATTERN="roc_nightly-${PLATFORM}-*"
+        else
+          DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/${VERSION}/roc-${PLATFORM}-${VERSION}.tar.gz"
+          SKIP_SHA_CHECK=false
+        fi
+
         echo "Downloading Roc for $PLATFORM..."
         curl -fsSL -o roc.tar.gz "$DOWNLOAD_URL"
 
-        # Verify SHA256 checksum
-        echo "Verifying SHA256 checksum..."
-        ACTUAL_SHA=$($SHA_CMD roc.tar.gz | awk '{print $1}')
+        # Verify SHA256 checksum (skip for nightly releases)
+        if [[ "$SKIP_SHA_CHECK" == "false" ]]; then
+          echo "Verifying SHA256 checksum..."
+          ACTUAL_SHA=$($SHA_CMD roc.tar.gz | awk '{print $1}')
 
-        if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
-          echo "Error: SHA256 checksum mismatch!"
-          echo "Expected: $EXPECTED_SHA"
-          echo "Actual:   $ACTUAL_SHA"
-          echo "This should never happen and could mean the file is malicious. Please make a post on <https://roc.zulipchat.com> and request investigation of this incident."
-          exit 1
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Error: SHA256 checksum mismatch!"
+            echo "Expected: $EXPECTED_SHA"
+            echo "Actual:   $ACTUAL_SHA"
+            echo "This should never happen and could mean the file is malicious. Please make a post on <https://roc.zulipchat.com> and request investigation of this incident."
+            exit 1
+          fi
+
+          echo "SHA256 checksum verified successfully"
+        else
+          echo "Skipping SHA256 verification for nightly release"
         fi
-
-        echo "SHA256 checksum verified successfully"
 
         # Extract Roc
         echo "Extracting Roc..."

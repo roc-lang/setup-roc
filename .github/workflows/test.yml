@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }} ${{ matrix.arch }}
+    name: Test ${{ matrix.version }} on ${{ matrix.os }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -13,15 +13,35 @@ jobs:
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
+            version: alpha4-rolling
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: nightly
           - os: Linux
             arch: arm64
             runner: ubuntu-24.04-arm
+            version: alpha4-rolling
+          - os: Linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            version: nightly
           - os: macOS
             arch: x86_64
             runner: macos-15-intel
+            version: alpha4-rolling
+          - os: macOS
+            arch: x86_64
+            runner: macos-15-intel
+            version: nightly
           - os: macOS
             arch: arm64
             runner: macos-latest
+            version: alpha4-rolling
+          - os: macOS
+            arch: arm64
+            runner: macos-latest
+            version: nightly
 
     steps:
       - name: Checkout repository
@@ -29,6 +49,8 @@ jobs:
 
       - name: Setup Roc
         uses: ./
+        with:
+          version: ${{ matrix.version }}
 
       - name: Check Roc version
         run: roc version
