@@ -74,16 +74,16 @@ runs:
         # Set expected SHA256 based on version and platform
         case "$VERSION-$PLATFORM" in
           alpha3-rolling-linux_x86_64)
-            EXPECTED_SHA="7fa4434b53dc8fb2ea39a2a93925de2eece569dff332365f30e7f93e819762ac"
+            EXPECTED_SHA="c96045f1f54dc3d9e20c33ede8698d79b01e43f09652795beb4f0bc7fb38cba8"
             ;;
           alpha3-rolling-linux_arm64)
-            EXPECTED_SHA="696213a44a082dfe8e3f9a6f41abef0ec390d3a75443f15081eff5532b9305a5"
+            EXPECTED_SHA="3eaf492e5e11d39a1c5a549005589405c40902fc0bed517acf8e8a18d190a409"
             ;;
           alpha3-rolling-macos_x86_64)
-            EXPECTED_SHA="5e849e461c0be0d80b9a48379699bc6fa397f81b560d98b1ec3185b4d5a3a35f"
+            EXPECTED_SHA="205c70d1f6f6f46c2c681350a68cd91886bdb7a24fd09646f3ba5c2b1e1e1379"
             ;;
           alpha3-rolling-macos_apple_silicon)
-            EXPECTED_SHA="66cdd1ff3a0968938ae55a1951cbdd79a41a9743310a6fa6a06f24659107593d"
+            EXPECTED_SHA="ef64605d0be3296ad25e34b2d6841ed506ded6208565cbd4289bc81c9dbd3c9d"
             ;;
           alpha4-rolling-linux_x86_64)
             EXPECTED_SHA="96e8be05e6f7176433ada74532ff36a62b8dc44c5247a82cdf919f2dadc5178b"
