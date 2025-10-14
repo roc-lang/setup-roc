@@ -14,7 +14,7 @@ Add this step to your CI workflow:
 ### Using Major Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
+- uses: roc-lang/setup-roc@39c354a6a838a0089eea9068a0414f49b62c5c08
   with:
     version: alpha4-rolling
 ```
@@ -23,9 +23,9 @@ Add this step to your CI workflow:
 ### Using Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
+- uses: roc-lang/setup-roc@39c354a6a838a0089eea9068a0414f49b62c5c08
   with:
-    # Nightly hashes are not verified because they are updated regularly.
+    # Note: nightly hashes are not verified because they are updated regularly.
     version: nightly
 ```
 
