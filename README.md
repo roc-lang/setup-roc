@@ -18,13 +18,14 @@ Add this step to your CI workflow:
   with:
     version: alpha4-rolling
 ```
-> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the included alpha4 release sha256 hashes can not be altered if a github account with access to this repo is hacked.  
+> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the alpha4 release can not be altered if one of our github accounts is hacked.  
 
 ### Using Nightly Releases
 
 ```yaml
 - uses: roc-lang/setup-roc@e2e4452c2bfb0380daadefdb23b989bc9748c63b
   with:
+    # Nightly hashes are not verified because they are updated regularly.
     version: nightly
 ```
 
