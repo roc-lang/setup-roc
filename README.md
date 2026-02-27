@@ -29,6 +29,15 @@ Add this step to your CI workflow:
     version: nightly
 ```
 
+### Using New Compiler Nightly Releases
+
+```yaml
+- uses: roc-lang/setup-roc@TODO
+  with:
+    # Installs the latest nightly from https://github.com/roc-lang/nightlies
+    version: nightly-new-compiler
+```
+
 ## Platform Support
 
 This action supports the following platforms:
