@@ -32,7 +32,7 @@ Add this step to your CI workflow:
 ### Using New Compiler Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@TODO
+- uses: roc-lang/setup-roc@30ff82b396cbeb36a662a18f5c652773efb43e72
   with:
     # Installs the latest nightly from https://github.com/roc-lang/nightlies
     version: nightly-new-compiler
