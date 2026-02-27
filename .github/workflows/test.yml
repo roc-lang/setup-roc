@@ -23,6 +23,10 @@ jobs:
             runner: ubuntu-latest
             version: nightly
           - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: nightly-new-compiler
+          - os: Linux
             arch: arm64
             runner: ubuntu-24.04-arm
             version: alpha3-rolling
@@ -34,6 +38,10 @@ jobs:
             arch: arm64
             runner: ubuntu-24.04-arm
             version: nightly
+          - os: Linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            version: nightly-new-compiler
           - os: macOS
             arch: x86_64
             runner: macos-15-intel
@@ -47,6 +55,10 @@ jobs:
             runner: macos-15-intel
             version: nightly
           - os: macOS
+            arch: x86_64
+            runner: macos-15-intel
+            version: nightly-new-compiler
+          - os: macOS
             arch: arm64
             runner: macos-latest
             version: alpha3-rolling
@@ -58,6 +70,10 @@ jobs:
             arch: arm64
             runner: macos-latest
             version: nightly
+          - os: macOS
+            arch: arm64
+            runner: macos-latest
+            version: nightly-new-compiler
 
     steps:
       - name: Checkout repository
@@ -71,8 +87,13 @@ jobs:
       - name: Check Roc version
         run: roc version
 
-      - name: Download HelloWorld example
+      - name: Download HelloWorld example (old compiler)
+        if: matrix.version != 'nightly-new-compiler'
         run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/main/examples/HelloWorld/main.roc
+
+      - name: Download HelloWorld example (new compiler)
+        if: matrix.version == 'nightly-new-compiler'
+        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/nightlies/main/hello_world_test.roc
 
       - name: Run HelloWorld example
         run: roc main.roc

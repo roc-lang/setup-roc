@@ -6,7 +6,7 @@ branding:
 
 inputs:
   version:
-    description: 'Version of Roc to install (e.g., "nightly", "alpha4-rolling")'
+    description: 'Version of Roc to install (e.g., "nightly", "nightly-new-compiler", "alpha4-rolling")'
     required: true
 
 runs:
@@ -97,12 +97,15 @@ runs:
           alpha4-rolling-macos_apple_silicon)
             EXPECTED_SHA="416fbd983280eda11ac87b0947e27bf0a86d186a94baebeb71e163942bb5bd84"
             ;;
+          nightly-new-compiler-*)
+            # New compiler nightly builds - no SHA verification
+            ;;
           nightly-*)
             # Nightly builds - no SHA verification
             ;;
           *)
             echo "Error: Unsupported version: $VERSION"
-            echo "Supported versions: nightly, alpha3-rolling, alpha4-rolling"
+            echo "Supported versions: nightly, nightly-new-compiler, alpha3-rolling, alpha4-rolling"
             echo "Make sure your version is listed in https://github.com/roc-lang/roc/tags and try updating to"
             echo "the latest commit of the setup-roc action, see <https://github.com/roc-lang/setup-roc>."
             exit 1
@@ -110,7 +113,17 @@ runs:
         esac
 
         # Download Roc
-        if [[ "$VERSION" == "nightly" ]]; then
+        if [[ "$VERSION" == "nightly-new-compiler" ]]; then
+          # Fetch the latest release from roc-lang/nightlies and find the asset for our platform
+          DOWNLOAD_URL=$(curl -fsSL "https://api.github.com/repos/roc-lang/nightlies/releases/latest" | \
+            jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".tar.gz\")) | .browser_download_url")
+          if [[ -z "$DOWNLOAD_URL" ]]; then
+            echo "Error: Could not find a nightly-new-compiler release for platform: $PLATFORM"
+            exit 1
+          fi
+          SKIP_SHA_CHECK=true
+          DIR_PATTERN="roc_nightly-${PLATFORM}-*"
+        elif [[ "$VERSION" == "nightly" ]]; then
           DOWNLOAD_URL="https://github.com/roc-lang/roc/releases/download/nightly/roc_nightly-${PLATFORM}-latest.tar.gz"
           SKIP_SHA_CHECK=true
           DIR_PATTERN="roc_nightly-${PLATFORM}-*"
