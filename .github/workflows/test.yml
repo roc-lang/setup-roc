@@ -74,10 +74,26 @@ jobs:
             arch: arm64
             runner: macos-latest
             version: nightly-new-compiler
+          - os: macOS
+            arch: x86_64
+            runner: macos-26-intel
+            version: nightly-new-compiler
+          - os: macOS
+            arch: arm64
+            runner: macos-26
+            version: nightly-new-compiler
+          - os: Windows
+            arch: x86_64
+            runner: windows-2022
+            version: nightly-new-compiler
+          - os: Windows
+            arch: x86_64
+            runner: windows-2025
+            version: nightly-new-compiler
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Roc
         uses: ./

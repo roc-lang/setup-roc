@@ -8,6 +8,10 @@ inputs:
   version:
     description: 'Version of Roc to install (e.g., "nightly", "nightly-new-compiler", "alpha4-rolling")'
     required: true
+  token:
+    description: 'GitHub token used to authenticate API requests (avoids rate limiting). Defaults to the workflow token.'
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: 'composite'
@@ -18,6 +22,7 @@ runs:
         set -euo pipefail
 
         VERSION="${{ inputs.version }}"
+        TOKEN="${{ inputs.token }}"
         echo "Installing Roc version: $VERSION"
 
         # Detect OS and architecture
@@ -26,6 +31,9 @@ runs:
 
         echo "Detected OS: $OS"
         echo "Detected architecture: $ARCH"
+
+        # Archive extension (most platforms ship .tar.gz, Windows ships .zip)
+        ASSET_EXT="tar.gz"
 
         # Determine platform-specific values
         case "$OS" in
@@ -61,6 +69,24 @@ runs:
                 ;;
               *)
                 echo "Error: Unsupported macOS architecture: $ARCH"
+                exit 1
+                ;;
+            esac
+            ;;
+          MINGW*|MSYS*|CYGWIN*)
+            if [[ "$VERSION" != "nightly-new-compiler" ]]; then
+              echo "Error: Windows is only supported for the 'nightly-new-compiler' version"
+              exit 1
+            fi
+            case "$ARCH" in
+              x86_64)
+                PLATFORM="windows_x86_64"
+                DIR_PATTERN="roc_nightly-windows_x86_64-*"
+                SHA_CMD="sha256sum"
+                ASSET_EXT="zip"
+                ;;
+              *)
+                echo "Error: Unsupported Windows architecture: $ARCH"
                 exit 1
                 ;;
             esac
@@ -115,8 +141,12 @@ runs:
         # Download Roc
         if [[ "$VERSION" == "nightly-new-compiler" ]]; then
           # Fetch the latest release from roc-lang/nightlies and find the asset for our platform
-          DOWNLOAD_URL=$(curl -fsSL "https://api.github.com/repos/roc-lang/nightlies/releases/latest" | \
-            jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".tar.gz\")) | .browser_download_url")
+          AUTH_HEADER=()
+          if [[ -n "$TOKEN" ]]; then
+            AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
+          fi
+          DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "https://api.github.com/repos/roc-lang/nightlies/releases/latest" | \
+            jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".${ASSET_EXT}\")) | .browser_download_url")
           if [[ -z "$DOWNLOAD_URL" ]]; then
             echo "Error: Could not find a nightly-new-compiler release for platform: $PLATFORM"
             exit 1
@@ -133,12 +163,13 @@ runs:
         fi
 
         echo "Downloading Roc for $PLATFORM..."
-        curl -fsSL -o roc.tar.gz "$DOWNLOAD_URL"
+        ARCHIVE="roc.${ASSET_EXT}"
+        curl -fsSL -o "$ARCHIVE" "$DOWNLOAD_URL"
 
         # Verify SHA256 checksum (skip for nightly releases)
         if [[ "$SKIP_SHA_CHECK" == "false" ]]; then
           echo "Verifying SHA256 checksum..."
-          ACTUAL_SHA=$($SHA_CMD roc.tar.gz | awk '{print $1}')
+          ACTUAL_SHA=$($SHA_CMD "$ARCHIVE" | awk '{print $1}')
 
           if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
             echo "Error: SHA256 checksum mismatch!"
@@ -155,8 +186,12 @@ runs:
 
         # Extract Roc
         echo "Extracting Roc..."
-        tar -xzf roc.tar.gz
-        rm roc.tar.gz
+        if [[ "$ASSET_EXT" == "zip" ]]; then
+          unzip -q "$ARCHIVE"
+        else
+          tar -xzf "$ARCHIVE"
+        fi
+        rm "$ARCHIVE"
 
         # Find the extracted directory and add to PATH
         ROC_DIR=$(find . -maxdepth 1 -type d -name "$DIR_PATTERN" | head -n 1)
