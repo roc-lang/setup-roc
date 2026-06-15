@@ -11,31 +11,31 @@ A GitHub Action to download and setup the Roc compiler for Linux and macOS.
 
 Add this step to your CI workflow:
 
-### Using Major Releases
+### For New Compiler Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@39c354a6a838a0089eea9068a0414f49b62c5c08
+- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
+  with:
+    # Installs the latest nightly from https://github.com/roc-lang/nightlies
+    version: nightly-new-compiler
+```
+
+### For Old Major Releases
+
+```yaml
+- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
   with:
     version: alpha4-rolling
 ```
 > Note: we recommend using this @commit-sha way to specify the version. This makes sure that the alpha4 release can not be altered if one of our github accounts is hacked.  
 
-### Using Nightly Releases
+### For Old Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@39c354a6a838a0089eea9068a0414f49b62c5c08
+- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
   with:
     # Note: nightly hashes are not verified because they are updated regularly.
     version: nightly
-```
-
-### Using New Compiler Nightly Releases
-
-```yaml
-- uses: roc-lang/setup-roc@30ff82b396cbeb36a662a18f5c652773efb43e72
-  with:
-    # Installs the latest nightly from https://github.com/roc-lang/nightlies
-    version: nightly-new-compiler
 ```
 
 ## Platform Support
@@ -48,6 +48,10 @@ This action supports the following platforms:
 | Linux | arm64 | ✅ |
 | macOS | x86_64 (Intel) | ✅ |
 | macOS | arm64 (Apple Silicon) | ✅ |
+| Windows | x86_64 | ✅ |
+| Windows | arm64 | ❌ |
+
+Windows arm64 can be made available again with the next zig release (after 0.16.0).
 
 ## What it does
 
@@ -61,4 +65,4 @@ This action supports the following platforms:
 
 For major releases, the action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.
 
-For nightly releases, SHA256 verification is skipped since the files are updated regularly.
+For nightly releases, SHA256 verification is skipped because the files are updated regularly.
