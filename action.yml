@@ -8,6 +8,10 @@ inputs:
   version:
     description: 'Version of Roc to install (e.g., "nightly", "nightly-new-compiler", "alpha4-rolling")'
     required: true
+  nightly-tag:
+    description: 'Pin to a specific nightly release tag from roc-lang/nightlies (e.g., "nightly-2026-June-27-127861d"). Only valid when version is "nightly-new-compiler". When unset, the latest nightly is used.'
+    required: false
+    default: ''
   token:
     description: 'GitHub token used to authenticate API requests (avoids rate limiting). Defaults to the workflow token.'
     required: false
@@ -22,8 +26,15 @@ runs:
         set -euo pipefail
 
         VERSION="${{ inputs.version }}"
+        NIGHTLY_TAG="${{ inputs.nightly-tag }}"
         TOKEN="${{ inputs.token }}"
         echo "Installing Roc version: $VERSION"
+
+        # The nightly-tag input only applies to nightly-new-compiler
+        if [[ -n "$NIGHTLY_TAG" && "$VERSION" != "nightly-new-compiler" ]]; then
+          echo "Error: 'nightly-tag' is only supported when version is 'nightly-new-compiler' (got version '$VERSION')"
+          exit 1
+        fi
 
         # Detect OS and architecture
         OS=$(uname -s)
@@ -140,15 +151,27 @@ runs:
 
         # Download Roc
         if [[ "$VERSION" == "nightly-new-compiler" ]]; then
-          # Fetch the latest release from roc-lang/nightlies and find the asset for our platform
+          # Fetch a release from roc-lang/nightlies and find the asset for our platform
           AUTH_HEADER=()
           if [[ -n "$TOKEN" ]]; then
             AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
           fi
-          DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "https://api.github.com/repos/roc-lang/nightlies/releases/latest" | \
+          if [[ -n "$NIGHTLY_TAG" ]]; then
+            # Pin to a specific, immutable nightly release tag
+            echo "Pinning to nightly tag: $NIGHTLY_TAG"
+            RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/tags/${NIGHTLY_TAG}"
+          else
+            RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/latest"
+          fi
+          DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "$RELEASE_API_URL" | \
             jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".${ASSET_EXT}\")) | .browser_download_url")
           if [[ -z "$DOWNLOAD_URL" ]]; then
-            echo "Error: Could not find a nightly-new-compiler release for platform: $PLATFORM"
+            if [[ -n "$NIGHTLY_TAG" ]]; then
+              echo "Error: Could not find a nightly-new-compiler release for platform '$PLATFORM' under tag '$NIGHTLY_TAG'"
+              echo "Make sure the tag exists at https://github.com/roc-lang/nightlies/releases and has an asset for your platform."
+            else
+              echo "Error: Could not find a nightly-new-compiler release for platform: $PLATFORM"
+            fi
             exit 1
           fi
           SKIP_SHA_CHECK=true

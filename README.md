@@ -16,8 +16,8 @@ Add this step to your CI workflow:
 ```yaml
 - uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
   with:
-    # Installs the latest nightly from https://github.com/roc-lang/nightlies
     version: nightly-new-compiler
+    nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
 ```
 
 ### For Old Major Releases
@@ -27,7 +27,7 @@ Add this step to your CI workflow:
   with:
     version: alpha4-rolling
 ```
-> Note: we recommend using this @commit-sha way to specify the version. This makes sure that the alpha4 release can not be altered if one of our github accounts is hacked.  
+> Note: we recommend using this @commit-sha way to specify the setup-roc version. This makes sure that the alpha4 release can not be altered if one of our github accounts is hacked.  
 
 ### For Old Nightly Releases
 
