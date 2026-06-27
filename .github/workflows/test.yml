@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    name: Test ${{ matrix.version }} on ${{ matrix.os }} ${{ matrix.arch }}
+    name: Test ${{ matrix.version }}${{ matrix.nightly-tag && format(' ({0})', matrix.nightly-tag) || '' }} on ${{ matrix.os }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -26,6 +26,11 @@ jobs:
             arch: x86_64
             runner: ubuntu-latest
             version: nightly-new-compiler
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: nightly-new-compiler
+            nightly-tag: nightly-2026-June-27-127861d
           - os: Linux
             arch: arm64
             runner: ubuntu-24.04-arm
@@ -99,6 +104,7 @@ jobs:
         uses: ./
         with:
           version: ${{ matrix.version }}
+          nightly-tag: ${{ matrix.nightly-tag }}
 
       - name: Check Roc version
         run: roc version
