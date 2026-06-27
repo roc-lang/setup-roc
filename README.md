@@ -14,7 +14,7 @@ Add this step to your CI workflow:
 ### For New Compiler Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
+- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
   with:
     version: nightly-new-compiler
     nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
@@ -23,7 +23,7 @@ Add this step to your CI workflow:
 ### For Old Major Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
+- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
   with:
     version: alpha4-rolling
 ```
@@ -32,7 +32,7 @@ Add this step to your CI workflow:
 ### For Old Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
+- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
   with:
     # Note: nightly hashes are not verified because they are updated regularly.
     version: nightly
