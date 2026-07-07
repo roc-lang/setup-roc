@@ -61,6 +61,29 @@ Windows arm64 can be made available again with the next zig release (after 0.16.
 4. Extracts the compiler
 5. Adds the Roc executable to the PATH
 
+For new-compiler nightlies that include glue support, this action also exports:
+
+| Environment variable | Description |
+| --- | --- |
+| `ROC_GLUE_DIR` | Directory containing generated glue specs for the installed Roc version |
+| `ROC_RUST_GLUE` | Rust glue spec path |
+| `ROC_ZIG_GLUE` | Zig glue spec path |
+| `ROC_C_GLUE` | C glue spec path |
+| `ROC_GLUE_PLATFORM_URL` | URL of the matching glue platform package |
+
+Example:
+
+```yaml
+- uses: roc-lang/setup-roc@<commit-sha-with-glue-support>
+  with:
+    version: nightly-new-compiler
+
+- run: roc glue "$ROC_RUST_GLUE" ./platform/main.roc --output-dir ./platform
+```
+
+Pin to a `setup-roc` commit that includes glue support; older pinned commits do
+not export these variables.
+
 ## Security
 
 For major releases, the action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.

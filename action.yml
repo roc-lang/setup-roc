@@ -223,6 +223,33 @@ runs:
           exit 1
         fi
 
-        echo "$GITHUB_WORKSPACE/$ROC_DIR" >> $GITHUB_PATH
+        ROC_INSTALL_DIR="$GITHUB_WORKSPACE/$ROC_DIR"
+        echo "$ROC_INSTALL_DIR" >> "$GITHUB_PATH"
+
+        # New-compiler nightlies may include generated glue specs that match
+        # the installed compiler. Expose stable paths for downstream platform CI.
+        if [[ -d "$ROC_INSTALL_DIR/glue" ]]; then
+          echo "ROC_GLUE_DIR=$ROC_INSTALL_DIR/glue" >> "$GITHUB_ENV"
+
+          if [[ -f "$ROC_INSTALL_DIR/glue/RustGlue.roc" ]]; then
+            echo "ROC_RUST_GLUE=$ROC_INSTALL_DIR/glue/RustGlue.roc" >> "$GITHUB_ENV"
+          fi
+          if [[ -f "$ROC_INSTALL_DIR/glue/ZigGlue.roc" ]]; then
+            echo "ROC_ZIG_GLUE=$ROC_INSTALL_DIR/glue/ZigGlue.roc" >> "$GITHUB_ENV"
+          fi
+          if [[ -f "$ROC_INSTALL_DIR/glue/CGlue.roc" ]]; then
+            echo "ROC_C_GLUE=$ROC_INSTALL_DIR/glue/CGlue.roc" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -f "$ROC_INSTALL_DIR/glue/env" ]]; then
+            while IFS='=' read -r name value; do
+              case "$name" in
+                ROC_GLUE_PLATFORM_URL|ROC_GLUE_PLATFORM_PACKAGE)
+                  echo "$name=$value" >> "$GITHUB_ENV"
+                  ;;
+              esac
+            done < "$ROC_INSTALL_DIR/glue/env"
+          fi
+        fi
 
         echo "Roc setup completed successfully"
