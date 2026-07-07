@@ -14,7 +14,7 @@ Add this step to your CI workflow:
 ### For New Compiler Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
+- uses: roc-lang/setup-roc@e81ba5825caa1544545c783d4a02ae3155b5ab02
   with:
     version: nightly-new-compiler
     nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
@@ -23,7 +23,7 @@ Add this step to your CI workflow:
 ### For Old Major Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
+- uses: roc-lang/setup-roc@e81ba5825caa1544545c783d4a02ae3155b5ab02
   with:
     version: alpha4-rolling
 ```
@@ -32,7 +32,7 @@ Add this step to your CI workflow:
 ### For Old Nightly Releases
 
 ```yaml
-- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
+- uses: roc-lang/setup-roc@e81ba5825caa1544545c783d4a02ae3155b5ab02
   with:
     # Note: nightly hashes are not verified because they are updated regularly.
     version: nightly
@@ -74,15 +74,12 @@ For new-compiler nightlies that include glue support, this action also exports:
 Example:
 
 ```yaml
-- uses: roc-lang/setup-roc@<commit-sha-with-glue-support>
+- uses: roc-lang/setup-roc@e81ba5825caa1544545c783d4a02ae3155b5ab02
   with:
     version: nightly-new-compiler
 
 - run: roc glue "$ROC_RUST_GLUE" ./platform/main.roc --output-dir ./platform
 ```
-
-Pin to a `setup-roc` commit that includes glue support; older pinned commits do
-not export these variables.
 
 ## Security
 
