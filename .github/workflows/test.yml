@@ -13,88 +13,40 @@ jobs:
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
-            version: alpha3-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha4-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
             version: nightly
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
-            version: nightly-new-compiler
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
+            version: nightly
             nightly-tag: nightly-2026-June-27-127861d
           - os: Linux
             arch: arm64
             runner: ubuntu-24.04-arm
-            version: alpha3-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha4-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly-new-compiler
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha3-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha4-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
             version: nightly
           - os: macOS
             arch: x86_64
             runner: macos-15-intel
-            version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-15
-            version: alpha3-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-15
-            version: alpha4-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-15
             version: nightly
           - os: macOS
             arch: arm64
             runner: macos-latest
-            version: nightly-new-compiler
+            version: nightly
           - os: macOS
             arch: x86_64
             runner: macos-26-intel
-            version: nightly-new-compiler
+            version: nightly
           - os: macOS
             arch: arm64
             runner: macos-26
-            version: nightly-new-compiler
+            version: nightly
           - os: Windows
             arch: x86_64
             runner: windows-2022
-            version: nightly-new-compiler
+            version: nightly
           - os: Windows
             arch: x86_64
             runner: windows-2025
-            version: nightly-new-compiler
+            version: nightly
 
     steps:
       - name: Checkout repository
@@ -110,13 +62,7 @@ jobs:
       - name: Check Roc version
         run: roc version
 
-      # Pinned to the last version before the examples moved to new-compiler syntax.
-      - name: Download HelloWorld example (old compiler)
-        if: matrix.version != 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/75ccb5718653b903330ede4063710cfba80e5c40/examples/HelloWorld/main.roc
-
-      - name: Download HelloWorld example (new compiler)
-        if: matrix.version == 'nightly-new-compiler'
+      - name: Download HelloWorld example
         run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/nightlies/main/hello_world_test.roc
 
       - name: Run HelloWorld example
@@ -146,7 +92,7 @@ jobs:
         id: setup-roc
         uses: ./
         with:
-          version: nightly-new-compiler
+          version: nightly
           cache-key-suffix: ${{ matrix.runner }}
 
       - name: Run roc test
