@@ -3,7 +3,20 @@ name: Test Action
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
+  download-contract:
+    name: Download contract on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - run: python3 -B -m unittest discover -s tests -v
+
   test:
     name: Test ${{ matrix.version }}${{ matrix.nightly-tag && format(' ({0})', matrix.nightly-tag) || '' }} on ${{ matrix.os }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
@@ -14,6 +27,10 @@ jobs:
             arch: x86_64
             runner: ubuntu-latest
             version: nightly
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: nightly-new-compiler
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
@@ -57,6 +74,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           nightly-tag: ${{ matrix.nightly-tag }}
+          download-method: asset-api
           cache-key-suffix: ${{ matrix.runner }}-${{ matrix.nightly-tag }}
 
       - name: Check Roc version
@@ -93,6 +111,7 @@ jobs:
         uses: ./
         with:
           version: nightly
+          download-method: asset-api
           cache-key-suffix: ${{ matrix.runner }}
 
       - name: Run roc test

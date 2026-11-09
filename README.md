@@ -32,6 +32,7 @@ jobs:
         with:
           version: nightly
           nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
+          # download-method: asset-api # verify and download through the official asset API
           # cache-key-suffix: ${{ matrix.os }} # needed when matrix jobs share a name
 
       - run: roc test main.roc
@@ -58,6 +59,34 @@ This action supports the following platforms:
 | Windows | arm64 | ❌ |
 
 Windows arm64 can be made available again with the next zig release (after 0.16.0).
+
+## Asset API transport
+
+The default `download-method: browser` retains the browser download route.
+Use `download-method: asset-api` when installing through GitHub's official
+release asset API:
+
+```yaml
+- uses: roc-lang/setup-roc@<reviewed-commit-sha>
+  with:
+    version: nightly
+    download-method: asset-api
+    # nightly-tag: <exact-tag> # optional; otherwise resolve the latest nightly
+```
+
+API mode requires one matching compiler asset in the selected immutable official
+release. It validates the release/tag, asset ID, name, canonical URLs, size and
+SHA-256 digest, then checks the downloaded size and digest before extraction.
+Both metadata and asset requests have a 60-second deadline, HTTPS-only redirects
+and byte limits (1 MiB metadata, 1 GiB compiler archive). The token input is used
+only for metadata; asset bytes are downloaded without credentials. Invalid
+metadata, transport errors and mismatching bytes fail without a browser fallback.
+
+The installed directory must match the selected asset; an existing exact
+destination is refused. A different older nightly directory cannot become the
+selected compiler. Platform detection, glue exports and compiler caching retain
+their existing behavior. `nightly-new-compiler` remains available as a historical
+alias for `nightly`, including with an explicit tag.
 
 ## What it does
 
@@ -119,4 +148,8 @@ Matrix jobs need a distinct `cache-key-suffix` so that the entries saved on the 
 
 ## Security
 
-Downloaded nightlies are not checksum-verified, because they are updated regularly. To get a fixed, immutable release, set `nightly-tag`. Pin the action itself to a commit sha too, so the action code cannot be altered if one of our github accounts is hacked.
+Browser mode does not verify archive checksums. API mode verifies size and
+SHA-256 against the selected official immutable release metadata; this binds
+the delivered bytes to that asset, rather than proving how the compiler was
+built. Set `nightly-tag` to retain one release identity, and pin the action
+itself to a reviewed commit SHA.
