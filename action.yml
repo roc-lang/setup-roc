@@ -197,6 +197,8 @@ runs:
             [.id, .name, .size, (.digest | ltrimstr("sha256:"))] | @tsv
           ' "$API_TEMP/release.json")
           IFS=$'\t' read -r ASSET_ID ASSET_NAME EXPECTED_SIZE EXPECTED_SHA <<< "$ASSET_FIELDS"
+          # Native Windows jq terminates its validated TSV record with CRLF.
+          EXPECTED_SHA="${EXPECTED_SHA%$'\r'}"
           echo "Downloading official compiler asset $ASSET_ID ($EXPECTED_SIZE bytes)..."
           (
             unset TOKEN ROC_SETUP_TOKEN
@@ -212,9 +214,11 @@ runs:
             exit 1
           fi
           if [[ "$OS" == "Darwin" ]]; then
-            ACTUAL_SHA=$(shasum -a 256 "$API_TEMP/compiler" | awk '{print $1}')
+            ACTUAL_SHA=$(shasum -a 256 -b < "$API_TEMP/compiler" | awk '{print $1}')
           else
-            ACTUAL_SHA=$(sha256sum "$API_TEMP/compiler" | awk '{print $1}')
+            # stdin avoids GNU's escaped-filename prefix for backslash paths;
+            # binary mode also preserves every byte on Windows.
+            ACTUAL_SHA=$(sha256sum --binary < "$API_TEMP/compiler" | awk '{print $1}')
           fi
           if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
             echo "Error: compiler archive SHA256 mismatch (asset $ASSET_ID)"

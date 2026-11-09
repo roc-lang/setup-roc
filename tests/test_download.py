@@ -279,6 +279,25 @@ else:sys.stdout.buffer.write(data)
         self.assertNotIn(stale.name, (self.root / "github-path").read_text())
         self.assertEqual((stale / "roc").read_text(), "unverified stale compiler")
 
+    def test_backslash_in_temporary_path_does_not_change_digest(self):
+        temporary = self.root / "runtime\\windows"
+        temporary.mkdir()
+        result = self.run_action(extra_environment={"RUNNER_TEMP": str(temporary)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(list(temporary.iterdir()))
+
+    def test_native_jq_crlf_record_does_not_change_validated_digest(self):
+        real_jq = shutil.which("jq")
+        self.tool("jq", f"""#!/usr/bin/env python3
+import subprocess,sys
+result=subprocess.run([{real_jq!r},*sys.argv[1:]],capture_output=True)
+sys.stdout.buffer.write(result.stdout.replace(b'\\n',b'\\r\\n'))
+sys.stderr.buffer.write(result.stderr)
+sys.exit(result.returncode)
+""")
+        result = self.run_action()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_existing_exact_destination_is_not_trusted_or_overwritten(self):
         target = self.workspace / self.expected_directory
         target.mkdir()
