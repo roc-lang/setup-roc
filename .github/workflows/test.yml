@@ -3,17 +3,36 @@ name: Test Action
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
+  download-contract:
+    name: Download contract on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - run: python3 -B -m unittest discover -s tests -v
+
   test:
     name: Test ${{ matrix.version }}${{ matrix.nightly-tag && format(' ({0})', matrix.nightly-tag) || '' }} on ${{ matrix.os }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
             version: nightly
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: nightly-new-compiler
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
@@ -57,6 +76,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           nightly-tag: ${{ matrix.nightly-tag }}
+          download-method: asset-api
           cache-key-suffix: ${{ matrix.runner }}-${{ matrix.nightly-tag }}
 
       - name: Check Roc version
@@ -69,11 +89,13 @@ jobs:
         run: roc main.roc
 
   # Jobs run one after another: `save` fills the cache, `restore` must then
-  # restore it with an exact key match and `roc test` must report `(cached)`.
+  # restore it with an exact key match. Its sole module must be reused; the
+  # native expect still runs. Test outcomes need not have a cached label.
   cache:
     name: Cache ${{ matrix.step }} on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         include:
@@ -93,12 +115,17 @@ jobs:
         uses: ./
         with:
           version: nightly
+          download-method: asset-api
           cache-key-suffix: ${{ matrix.runner }}
 
       - name: Run roc test
         shell: bash
         run: |
           printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
+          cold_cache=$(mktemp -d "$RUNNER_TEMP/roc-cache-control.XXXXXX")
+          ROC_CACHE_DIR="$cold_cache" roc check CacheSmoke.roc --verbose | tee cold-check-output.txt
+          python3 tests/assert_cache_reuse.py cold cold-check-output.txt
+          roc check CacheSmoke.roc --verbose | tee cache-check-output.txt
           roc test CacheSmoke.roc | tee test-output.txt
 
       - name: Check that roc wrote to the cache
@@ -115,7 +142,7 @@ jobs:
           CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
         run: |
           [[ "$CACHE_HIT" == "true" ]] || { echo "Error: expected an exact cache hit (cache-hit='$CACHE_HIT')"; exit 1; }
-          grep -q "(cached)" test-output.txt || { echo "Error: roc test did not use the restored cache"; exit 1; }
+          python3 tests/assert_cache_reuse.py restored cache-check-output.txt
 
       # Save even when an earlier step failed; the automatic save only runs on success.
       - name: Save Roc cache

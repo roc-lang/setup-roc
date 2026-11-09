@@ -6,7 +6,7 @@ branding:
 
 inputs:
   version:
-    description: 'Version of Roc to install. Only "nightly" is supported.'
+    description: 'Version of Roc to install: "nightly" or its historical "nightly-new-compiler" alias.'
     required: true
   nightly-tag:
     description: 'Pin to a specific nightly release tag from roc-lang/nightlies (e.g., "nightly-2026-June-27-127861d"). When unset, the latest nightly is used.'
@@ -16,8 +16,12 @@ inputs:
     description: 'GitHub token used to authenticate API requests (avoids rate limiting). Defaults to the workflow token.'
     required: false
     default: ${{ github.token }}
+  download-method:
+    description: 'Asset transport: "browser" (default) or "asset-api" (verified official release asset API).'
+    required: false
+    default: 'browser'
   cache:
-    description: 'Restore and save the Roc cache (cached roc test results) with actions/cache. Set to "false" to disable.'
+    description: 'Restore and save Roc compiler artifacts with actions/cache. Set to "false" to disable.'
     required: false
     default: 'true'
   cache-key-suffix:
@@ -41,20 +45,36 @@ runs:
   steps:
     - name: Download Roc
       shell: bash
+      env:
+        ROC_SETUP_VERSION: ${{ inputs.version }}
+        ROC_SETUP_NIGHTLY_TAG: ${{ inputs.nightly-tag }}
+        ROC_SETUP_TOKEN: ${{ inputs.token }}
+        ROC_SETUP_DOWNLOAD_METHOD: ${{ inputs.download-method }}
       run: |
         set -euo pipefail
 
-        VERSION="${{ inputs.version }}"
-        NIGHTLY_TAG="${{ inputs.nightly-tag }}"
-        TOKEN="${{ inputs.token }}"
+        VERSION="$ROC_SETUP_VERSION"
+        NIGHTLY_TAG="$ROC_SETUP_NIGHTLY_TAG"
+        TOKEN="$ROC_SETUP_TOKEN"
+        DOWNLOAD_METHOD="$ROC_SETUP_DOWNLOAD_METHOD"
         echo "Installing Roc version: $VERSION"
 
-        if [[ "$VERSION" != "nightly" ]]; then
+        if [[ "$VERSION" != "nightly" && "$VERSION" != "nightly-new-compiler" ]]; then
           echo "Error: Unsupported version: $VERSION"
-          echo "The only supported version is: nightly"
+          echo "Supported versions: nightly, nightly-new-compiler (alias)"
           echo "Older releases are no longer supported by the latest setup-roc, pin an older commit of"
           echo "<https://github.com/roc-lang/setup-roc> if you still need them."
           exit 1
+        fi
+        if [[ "$DOWNLOAD_METHOD" != "browser" && "$DOWNLOAD_METHOD" != "asset-api" ]]; then
+          echo "Error: download-method must be browser or asset-api"
+          exit 1
+        fi
+        if [[ "$DOWNLOAD_METHOD" == "asset-api" && -n "$NIGHTLY_TAG" ]]; then
+          if [[ ! "$NIGHTLY_TAG" =~ ^nightly-[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#NIGHTLY_TAG} -gt 128 ]]; then
+            echo "Error: invalid nightly tag for asset-api transport"
+            exit 1
+          fi
         fi
 
         # Detect OS and architecture
@@ -129,21 +149,89 @@ runs:
         else
           RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/latest"
         fi
-        DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "$RELEASE_API_URL" | \
-          jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".${ASSET_EXT}\")) | .browser_download_url")
-        if [[ -z "$DOWNLOAD_URL" ]]; then
-          if [[ -n "$NIGHTLY_TAG" ]]; then
-            echo "Error: Could not find a nightly release for platform '$PLATFORM' under tag '$NIGHTLY_TAG'"
-            echo "Make sure the tag exists at https://github.com/roc-lang/nightlies/releases and has an asset for your platform."
-          else
-            echo "Error: Could not find a nightly release for platform: $PLATFORM"
-          fi
-          exit 1
-        fi
-
         echo "Downloading Roc for $PLATFORM..."
         ARCHIVE="roc.${ASSET_EXT}"
-        curl -fsSL -o "$ARCHIVE" "$DOWNLOAD_URL"
+        if [[ "$DOWNLOAD_METHOD" == "browser" ]]; then
+          DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "$RELEASE_API_URL" | \
+            jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".${ASSET_EXT}\")) | .browser_download_url")
+          if [[ -z "$DOWNLOAD_URL" ]]; then
+            echo "Error: Could not find a nightly release for platform '$PLATFORM'"
+            exit 1
+          fi
+          curl -fsSL -o "$ARCHIVE" "$DOWNLOAD_URL"
+        else
+          # Keep authentication on metadata only. Public asset bytes use the
+          # measured anonymous API route, never a restored compiler tree.
+          API_TEMP=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/setup-roc-api.XXXXXX")
+          trap 'rm -rf -- "$API_TEMP"' EXIT
+          echo "Resolving official immutable release metadata..."
+          curl --disable --fail --silent --show-error --location --no-netrc \
+            --proto '=https' --proto-redir '=https' --max-redirs 3 \
+            --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
+            "${AUTH_HEADER[@]}" --output "$API_TEMP/release.json" "$RELEASE_API_URL"
+          if [[ $(wc -c < "$API_TEMP/release.json") -gt 1048576 ]]; then
+            echo "Error: release metadata exceeds 1 MiB"
+            exit 1
+          fi
+          ASSET_FIELDS=$(jq -ser --arg platform "$PLATFORM" --arg ext "$ASSET_EXT" --arg requested "$NIGHTLY_TAG" '
+            def positive_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+            if length != 1 then error("expected one release metadata object") else .[0] end |
+            if .draft != false or .immutable != true or
+              (.id | positive_integer | not) or (.tag_name | type != "string")
+              then error("invalid immutable release metadata") else . end |
+            if (.tag_name | test("^nightly-[A-Za-z0-9][A-Za-z0-9._-]*$") | not) or
+              (.tag_name | length > 128) or ($requested != "" and .tag_name != $requested)
+              then error("release tag mismatch") else . end |
+            . as $release |
+            [.assets[] | select(.name | startswith("roc_nightly-" + $platform + "-")) |
+              select(.name | endswith("." + $ext))] |
+            if length != 1 then error("expected exactly one compiler asset") else .[0] end |
+            if (.id | positive_integer | not) or (.size | positive_integer | not) or
+              .size > 1073741824 or (.name | length > 200) or
+              (.name | test("^roc_nightly-[A-Za-z0-9._-]+$") | not) or (.digest | type != "string")
+              then error("invalid compiler asset metadata") else . end |
+            if (.digest | test("^sha256:[0-9a-f]{64}$") | not) or
+              .url != ("https://api.github.com/repos/roc-lang/nightlies/releases/assets/" + (.id | tostring)) or
+              .browser_download_url != ("https://github.com/roc-lang/nightlies/releases/download/" + $release.tag_name + "/" + .name)
+              then error("compiler asset identity or digest mismatch") else . end |
+            [.id, .name, .size, (.digest | ltrimstr("sha256:"))] | @tsv
+          ' "$API_TEMP/release.json")
+          IFS=$'\t' read -r ASSET_ID ASSET_NAME EXPECTED_SIZE EXPECTED_SHA <<< "$ASSET_FIELDS"
+          # Native Windows jq terminates its validated TSV record with CRLF.
+          EXPECTED_SHA="${EXPECTED_SHA%$'\r'}"
+          echo "Downloading official compiler asset $ASSET_ID ($EXPECTED_SIZE bytes)..."
+          (
+            unset TOKEN ROC_SETUP_TOKEN
+            for credential_name in ${!GH_@} ${!GITHUB_@}; do unset "$credential_name"; done
+            curl --disable --fail --silent --show-error --location --no-netrc \
+              --proto '=https' --proto-redir '=https' --max-redirs 3 \
+              --connect-timeout 10 --max-time 60 --max-filesize "$EXPECTED_SIZE" \
+              --header 'Accept: application/octet-stream' --output "$API_TEMP/compiler" \
+              "https://api.github.com/repos/roc-lang/nightlies/releases/assets/$ASSET_ID"
+          )
+          if [[ $(wc -c < "$API_TEMP/compiler") -ne "$EXPECTED_SIZE" ]]; then
+            echo "Error: compiler archive size mismatch (asset $ASSET_ID)"
+            exit 1
+          fi
+          if [[ "$OS" == "Darwin" ]]; then
+            ACTUAL_SHA=$(shasum -a 256 -b < "$API_TEMP/compiler" | awk '{print $1}')
+          else
+            # stdin avoids GNU's escaped-filename prefix for backslash paths;
+            # binary mode also preserves every byte on Windows.
+            ACTUAL_SHA=$(sha256sum --binary < "$API_TEMP/compiler" | awk '{print $1}')
+          fi
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Error: compiler archive SHA256 mismatch (asset $ASSET_ID)"
+            exit 1
+          fi
+          EXPECTED_ROC_DIR="${ASSET_NAME%.$ASSET_EXT}"
+          if [[ -e "$EXPECTED_ROC_DIR" || -L "$EXPECTED_ROC_DIR" ]]; then
+            echo "Error: refusing existing compiler destination"
+            exit 1
+          fi
+          echo "Verified official compiler asset $ASSET_ID ($EXPECTED_SIZE bytes)"
+          mv "$API_TEMP/compiler" "$ARCHIVE"
+        fi
 
         # Extract Roc
         echo "Extracting Roc..."
@@ -155,7 +243,17 @@ runs:
         rm "$ARCHIVE"
 
         # Find the extracted directory and add to PATH
-        ROC_DIR=$(find . -maxdepth 1 -type d -name "$DIR_PATTERN" | head -n 1)
+        if [[ "$DOWNLOAD_METHOD" == "asset-api" ]]; then
+          ROC_DIR="./$EXPECTED_ROC_DIR"
+          ROC_EXE="roc"
+          if [[ "$ASSET_EXT" == "zip" ]]; then ROC_EXE="roc.exe"; fi
+          if [[ ! -d "$ROC_DIR" || -L "$ROC_DIR" || ! -f "$ROC_DIR/$ROC_EXE" || -L "$ROC_DIR/$ROC_EXE" ]]; then
+            echo "Error: archive does not contain its selected compiler directory"
+            exit 1
+          fi
+        else
+          ROC_DIR=$(find . -maxdepth 1 -type d -name "$DIR_PATTERN" | head -n 1)
+        fi
         if [[ -z "$ROC_DIR" ]]; then
           echo "Error: Could not find extracted Roc directory"
           exit 1
