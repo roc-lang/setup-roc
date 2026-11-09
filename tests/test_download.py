@@ -255,7 +255,8 @@ else:sys.stdout.buffer.write(data)
                 self.assertFalse((self.workspace / self.expected_directory).exists())
 
     def test_oversized_or_invalid_metadata_rejected(self):
-        for body in (b"{" + b"x" * 1048576, b"not json", b"null"):
+        for body in (b"{" + b"x" * 1048576, b"not json", b"null",
+                     json.dumps(self.metadata).encode() + b"\n" + json.dumps(self.metadata).encode()):
             with self.subTest(size=len(body)):
                 self.metadata_body = body
                 self.assert_refused()

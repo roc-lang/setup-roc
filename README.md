@@ -11,7 +11,7 @@ A GitHub Action to download and setup the Roc compiler for Linux, macOS and Wind
 
 Add this step to your CI workflow:
 
-Recommended setup, which also caches Roc's build and `roc test` results between runs (see [Caching](#caching)):
+Recommended setup, which also caches Roc compiler artifacts between runs (see [Caching](#caching)):
 
 ```yaml
 on:
@@ -37,7 +37,7 @@ jobs:
 
       - run: roc test main.roc
 
-      # Also save the cache when the job fails, so tests that passed stay cached.
+      # Also save compiler work when the job fails.
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: always() && steps.roc.outputs.cache-key != ''
         with:
@@ -121,7 +121,12 @@ not export these variables.
 
 ## Caching
 
-The action restores the Roc cache at the start of the job and saves it when the job succeeds (using [actions/cache](https://github.com/actions/cache)). Cached `roc test` results are part of that cache, so unchanged tests are not run again; the output shows `(cached)`.
+The action restores the Roc compiler cache after installation and saves it when
+the job succeeds (using [actions/cache](https://github.com/actions/cache)).
+Roc can reuse checked modules and compiled artifacts supported by that compiler
+and target. This does not promise that test outcomes are cached or that native
+expects are skipped. The restore test checks reuse of its sole fixture module
+against a separate cold control, and still runs the native expect.
 
 - The cache lives in `$RUNNER_TEMP/roc-cache`, the action sets `ROC_CACHE_DIR` to this path. A `ROC_CACHE_DIR` you set yourself is respected.
 - Each OS, architecture and job name gets its own cache. A run restores the newest cache from the same Roc nightly, or else from any other nightly: Roc keys its entries by the compiler's content, so entries from a different compiler are ignored, while a nightly with an unchanged compiler reuses them. Add `cache-key-suffix` when jobs share a name, for example matrix jobs:
@@ -136,7 +141,7 @@ The action restores the Roc cache at the start of the job and saves it when the 
 - The `cache-hit` output is `true` when the cache was restored with an exact key match.
 - Set `cache: false` to disable caching.
 
-The cache is saved automatically when the job succeeds. The recommended setup at the top adds an `actions/cache/save` step with `if: always()` to also save it when the job fails, so tests that passed stay cached for the next run. It uses the `cache-path` and `cache-key` outputs.
+The cache is saved automatically when the job succeeds. The recommended setup at the top adds an `actions/cache/save` step with `if: always()` to also save compiler work when the job fails. It uses the `cache-path` and `cache-key` outputs.
 
 When the job succeeds, the automatic save finds this key already reserved and does nothing.
 

@@ -21,7 +21,7 @@ inputs:
     required: false
     default: 'browser'
   cache:
-    description: 'Restore and save the Roc cache (cached roc test results) with actions/cache. Set to "false" to disable.'
+    description: 'Restore and save Roc compiler artifacts with actions/cache. Set to "false" to disable.'
     required: false
     default: 'true'
   cache-key-suffix:
@@ -164,6 +164,7 @@ runs:
           # measured anonymous API route, never a restored compiler tree.
           API_TEMP=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/setup-roc-api.XXXXXX")
           trap 'rm -rf -- "$API_TEMP"' EXIT
+          echo "Resolving official immutable release metadata..."
           curl --disable --fail --silent --show-error --location --no-netrc \
             --proto '=https' --proto-redir '=https' --max-redirs 3 \
             --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
@@ -172,8 +173,9 @@ runs:
             echo "Error: release metadata exceeds 1 MiB"
             exit 1
           fi
-          ASSET_FIELDS=$(jq -er --arg platform "$PLATFORM" --arg ext "$ASSET_EXT" --arg requested "$NIGHTLY_TAG" '
+          ASSET_FIELDS=$(jq -ser --arg platform "$PLATFORM" --arg ext "$ASSET_EXT" --arg requested "$NIGHTLY_TAG" '
             def positive_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+            if length != 1 then error("expected one release metadata object") else .[0] end |
             if .draft != false or .immutable != true or
               (.id | positive_integer | not) or (.tag_name | type != "string")
               then error("invalid immutable release metadata") else . end |
@@ -195,6 +197,7 @@ runs:
             [.id, .name, .size, (.digest | ltrimstr("sha256:"))] | @tsv
           ' "$API_TEMP/release.json")
           IFS=$'\t' read -r ASSET_ID ASSET_NAME EXPECTED_SIZE EXPECTED_SHA <<< "$ASSET_FIELDS"
+          echo "Downloading official compiler asset $ASSET_ID ($EXPECTED_SIZE bytes)..."
           (
             unset TOKEN ROC_SETUP_TOKEN
             for credential_name in ${!GH_@} ${!GITHUB_@}; do unset "$credential_name"; done
