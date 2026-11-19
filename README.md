@@ -82,6 +82,13 @@ and byte limits (1 MiB metadata, 1 GiB compiler archive). The token input is use
 only for metadata; asset bytes are downloaded without credentials. Invalid
 metadata, transport errors and mismatching bytes fail without a browser fallback.
 
+Use `download-method: verified-browser` when the anonymous asset API returns
+HTTP 403 but the canonical release download is reachable. It uses the same
+immutable metadata, canonical URL validation, size/SHA-256 checks, deadlines,
+credential isolation and selected-directory checks as `asset-api`; only the
+anonymous asset-byte URL changes. This opt-in does not fall back to the legacy
+unverified `browser` mode or automatically switch transports on corruption.
+
 The installed directory must match the selected asset; an existing exact
 destination is refused. A different older nightly directory cannot become the
 selected compiler. Platform detection, glue exports and compiler caching retain
