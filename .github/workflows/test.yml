@@ -76,7 +76,9 @@ jobs:
         with:
           version: ${{ matrix.version }}
           nightly-tag: ${{ matrix.nightly-tag }}
-          download-method: asset-api
+          # Exercise the alternate verified transport in real native/cache runs;
+          # the download matrix above retains explicit asset-api coverage.
+          download-method: verified-browser
           cache-key-suffix: ${{ matrix.runner }}-${{ matrix.nightly-tag }}
 
       - name: Check Roc version
@@ -115,7 +117,9 @@ jobs:
         uses: ./
         with:
           version: nightly
-          download-method: asset-api
+          # Exercise the alternate verified transport in real native/cache runs;
+          # the download matrix above retains explicit asset-api coverage.
+          download-method: verified-browser
           cache-key-suffix: ${{ matrix.runner }}
 
       - name: Run roc test

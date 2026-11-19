@@ -175,6 +175,41 @@ else:sys.stdout.buffer.write(data)
         self.assertFalse((self.workspace / "roc.tar.gz").exists())
         self.assertFalse(list(self.runtime.iterdir()))
 
+    def test_verified_browser_keeps_bounds_and_asset_credential_isolation(self):
+        result = self.run_action(method="verified-browser")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = self.recorded_calls()
+        self.assertEqual(len(calls), 2)
+        asset = calls[1]
+        self.assertEqual(asset["args"][-1], self.metadata["assets"][0]["browser_download_url"])
+        self.assertEqual(asset["credentials"], [])
+        self.assertNotIn("[authorization]", asset["args"])
+        for option, value in (("--max-time", "60"), ("--max-redirs", "3"),
+                              ("--max-filesize", str(self.metadata["assets"][0]["size"]))):
+            self.assertEqual(asset["args"][asset["args"].index(option) + 1], value)
+        self.assertTrue((self.root / "github-path").read_text().strip().endswith(self.expected_directory))
+
+    def test_verified_browser_refuses_corrupt_bytes_without_other_transport(self):
+        for body in (b"short", b"X" * self.metadata["assets"][0]["size"]):
+            with self.subTest(size=len(body)):
+                self.body_path.write_bytes(body)
+                self.calls.unlink(missing_ok=True)
+                self.assert_refused(method="verified-browser")
+                calls = self.recorded_calls()
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(calls[1]["args"][-1], self.metadata["assets"][0]["browser_download_url"])
+
+    def test_verified_browser_refuses_mutable_or_redirected_asset_metadata(self):
+        for mutate in (lambda m: m.update(immutable=False),
+                       lambda m: m["assets"][0].update(browser_download_url="https://example.invalid/compiler")):
+            with self.subTest(mutate=mutate):
+                original = copy.deepcopy(self.metadata)
+                mutate(self.metadata)
+                self.calls.unlink(missing_ok=True)
+                self.assert_refused(method="verified-browser")
+                self.assertEqual(len(self.recorded_calls()), 1)
+                self.metadata = original
+
     def test_latest_and_explicit_tag_have_same_asset_route(self):
         result = self.run_action(tag="")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -195,14 +230,15 @@ else:sys.stdout.buffer.write(data)
         self.assertEqual(self.recorded_calls()[1]["args"][-1], self.metadata["assets"][0]["browser_download_url"])
 
     def test_all_five_platform_selections(self):
-        for platform in PLATFORMS:
-            with self.subTest(platform=platform):
-                self.platform = platform
-                self.set_release()
-                result = self.run_action()
-                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                self.assertTrue((self.workspace / self.expected_directory).is_dir())
-                shutil.rmtree(self.workspace / self.expected_directory)
+        for method in ("asset-api", "verified-browser"):
+            for platform in PLATFORMS:
+                with self.subTest(method=method, platform=platform):
+                    self.platform = platform
+                    self.set_release()
+                    result = self.run_action(method=method)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertTrue((self.workspace / self.expected_directory).is_dir())
+                    shutil.rmtree(self.workspace / self.expected_directory)
 
     def test_bad_method_tag_or_version_cannot_execute_shell_or_download(self):
         for arguments in ({"method": 'asset-api"; touch injected; #'},
@@ -295,8 +331,14 @@ sys.stdout.buffer.write(result.stdout.replace(b'\\n',b'\\r\\n'))
 sys.stderr.buffer.write(result.stderr)
 sys.exit(result.returncode)
 """)
-        result = self.run_action()
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for method in ("asset-api", "verified-browser"):
+            with self.subTest(method=method):
+                result = self.run_action(method=method)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                expected_url = (self.metadata["assets"][0]["browser_download_url"] if method == "verified-browser"
+                                else self.metadata["assets"][0]["url"])
+                self.assertEqual(self.recorded_calls()[-1]["args"][-1], expected_url)
+                shutil.rmtree(self.workspace / self.expected_directory)
 
     def test_existing_exact_destination_is_not_trusted_or_overwritten(self):
         target = self.workspace / self.expected_directory

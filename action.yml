@@ -17,7 +17,7 @@ inputs:
     required: false
     default: ${{ github.token }}
   download-method:
-    description: 'Asset transport: "browser" (default) or "asset-api" (verified official release asset API).'
+    description: 'Asset transport: "browser" (default), "asset-api", or "verified-browser" (both verify immutable metadata and archive bytes).'
     required: false
     default: 'browser'
   cache:
@@ -66,13 +66,13 @@ runs:
           echo "<https://github.com/roc-lang/setup-roc> if you still need them."
           exit 1
         fi
-        if [[ "$DOWNLOAD_METHOD" != "browser" && "$DOWNLOAD_METHOD" != "asset-api" ]]; then
-          echo "Error: download-method must be browser or asset-api"
+        if [[ "$DOWNLOAD_METHOD" != "browser" && "$DOWNLOAD_METHOD" != "asset-api" && "$DOWNLOAD_METHOD" != "verified-browser" ]]; then
+          echo "Error: download-method must be browser, asset-api or verified-browser"
           exit 1
         fi
-        if [[ "$DOWNLOAD_METHOD" == "asset-api" && -n "$NIGHTLY_TAG" ]]; then
+        if [[ "$DOWNLOAD_METHOD" != "browser" && -n "$NIGHTLY_TAG" ]]; then
           if [[ ! "$NIGHTLY_TAG" =~ ^nightly-[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#NIGHTLY_TAG} -gt 128 ]]; then
-            echo "Error: invalid nightly tag for asset-api transport"
+            echo "Error: invalid nightly tag for verified transport"
             exit 1
           fi
         fi
@@ -160,8 +160,8 @@ runs:
           fi
           curl -fsSL -o "$ARCHIVE" "$DOWNLOAD_URL"
         else
-          # Keep authentication on metadata only. Public asset bytes use the
-          # measured anonymous API route, never a restored compiler tree.
+          # Both verified transports authenticate metadata only and verify
+          # the same immutable asset identity, size and digest before extraction.
           API_TEMP=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/setup-roc-api.XXXXXX")
           trap 'rm -rf -- "$API_TEMP"' EXIT
           echo "Resolving official immutable release metadata..."
@@ -194,11 +194,16 @@ runs:
               .url != ("https://api.github.com/repos/roc-lang/nightlies/releases/assets/" + (.id | tostring)) or
               .browser_download_url != ("https://github.com/roc-lang/nightlies/releases/download/" + $release.tag_name + "/" + .name)
               then error("compiler asset identity or digest mismatch") else . end |
-            [.id, .name, .size, (.digest | ltrimstr("sha256:"))] | @tsv
+            [.id, .name, .size, (.digest | ltrimstr("sha256:")), .browser_download_url] | @tsv
           ' "$API_TEMP/release.json")
-          IFS=$'\t' read -r ASSET_ID ASSET_NAME EXPECTED_SIZE EXPECTED_SHA <<< "$ASSET_FIELDS"
+          IFS=$'\t' read -r ASSET_ID ASSET_NAME EXPECTED_SIZE EXPECTED_SHA ASSET_BROWSER_URL <<< "$ASSET_FIELDS"
           # Native Windows jq terminates its validated TSV record with CRLF.
           EXPECTED_SHA="${EXPECTED_SHA%$'\r'}"
+          ASSET_BROWSER_URL="${ASSET_BROWSER_URL%$'\r'}"
+          ASSET_DOWNLOAD_URL="https://api.github.com/repos/roc-lang/nightlies/releases/assets/$ASSET_ID"
+          if [[ "$DOWNLOAD_METHOD" == "verified-browser" ]]; then
+            ASSET_DOWNLOAD_URL="$ASSET_BROWSER_URL"
+          fi
           echo "Downloading official compiler asset $ASSET_ID ($EXPECTED_SIZE bytes)..."
           (
             unset TOKEN ROC_SETUP_TOKEN
@@ -207,7 +212,7 @@ runs:
               --proto '=https' --proto-redir '=https' --max-redirs 3 \
               --connect-timeout 10 --max-time 60 --max-filesize "$EXPECTED_SIZE" \
               --header 'Accept: application/octet-stream' --output "$API_TEMP/compiler" \
-              "https://api.github.com/repos/roc-lang/nightlies/releases/assets/$ASSET_ID"
+              "$ASSET_DOWNLOAD_URL"
           )
           if [[ $(wc -c < "$API_TEMP/compiler") -ne "$EXPECTED_SIZE" ]]; then
             echo "Error: compiler archive size mismatch (asset $ASSET_ID)"
@@ -243,7 +248,7 @@ runs:
         rm "$ARCHIVE"
 
         # Find the extracted directory and add to PATH
-        if [[ "$DOWNLOAD_METHOD" == "asset-api" ]]; then
+        if [[ "$DOWNLOAD_METHOD" != "browser" ]]; then
           ROC_DIR="./$EXPECTED_ROC_DIR"
           ROC_EXE="roc"
           if [[ "$ASSET_EXT" == "zip" ]]; then ROC_EXE="roc.exe"; fi
