@@ -44,6 +44,16 @@ jobs:
           key: ${{ steps.roc.outputs.cache-key }}
 ```
 
+## Versions
+
+`version` is either `nightly` or a release tag from [roc-lang/roc](https://github.com/roc-lang/roc/releases), for example `0.1.0_RC1`. `nightly-tag` only applies to `nightly`.
+
+```yaml
+- uses: roc-lang/setup-roc@<commit-sha>
+  with:
+    version: 0.1.0_RC1
+```
+
 ## Platform Support
 
 This action supports the following platforms:

@@ -6,7 +6,7 @@ branding:
 
 inputs:
   version:
-    description: 'Version of Roc to install. Only "nightly" is supported.'
+    description: 'Version of Roc to install: "nightly" or a release tag from roc-lang/roc (e.g., "0.1.0_RC1").'
     required: true
   nightly-tag:
     description: 'Pin to a specific nightly release tag from roc-lang/nightlies (e.g., "nightly-2026-June-27-127861d"). When unset, the latest nightly is used.'
@@ -41,19 +41,24 @@ runs:
   steps:
     - name: Download Roc
       shell: bash
+      env:
+        ROC_SETUP_VERSION: ${{ inputs.version }}
+        ROC_SETUP_NIGHTLY_TAG: ${{ inputs.nightly-tag }}
+        ROC_SETUP_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
 
-        VERSION="${{ inputs.version }}"
-        NIGHTLY_TAG="${{ inputs.nightly-tag }}"
-        TOKEN="${{ inputs.token }}"
+        VERSION="$ROC_SETUP_VERSION"
+        NIGHTLY_TAG="$ROC_SETUP_NIGHTLY_TAG"
+        TOKEN="$ROC_SETUP_TOKEN"
         echo "Installing Roc version: $VERSION"
 
-        if [[ "$VERSION" != "nightly" ]]; then
-          echo "Error: Unsupported version: $VERSION"
-          echo "The only supported version is: nightly"
-          echo "Older releases are no longer supported by the latest setup-roc, pin an older commit of"
-          echo "<https://github.com/roc-lang/setup-roc> if you still need them."
+        if [[ ! "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#VERSION} -gt 64 ]]; then
+          echo "Error: invalid version: $VERSION"
+          exit 1
+        fi
+        if [[ "$VERSION" != "nightly" && -n "$NIGHTLY_TAG" ]]; then
+          echo "Error: nightly-tag can only be used with version: nightly"
           exit 1
         fi
 
@@ -115,28 +120,35 @@ runs:
             ;;
         esac
 
-        DIR_PATTERN="roc_nightly-${PLATFORM}-*"
-
-        # Fetch a release from roc-lang/nightlies and find the asset for our platform
+        # Fetch a release and find the asset for our platform
         AUTH_HEADER=()
         if [[ -n "$TOKEN" ]]; then
           AUTH_HEADER=(-H "Authorization: Bearer $TOKEN")
         fi
-        if [[ -n "$NIGHTLY_TAG" ]]; then
-          # Pin to a specific, immutable nightly release tag
-          echo "Pinning to nightly tag: $NIGHTLY_TAG"
-          RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/tags/${NIGHTLY_TAG}"
+        if [[ "$VERSION" != "nightly" ]]; then
+          # Release from roc-lang/roc, archives are named roc-<platform>-<version>
+          RELEASE_NAME="Roc release $VERSION"
+          RELEASE_API_URL="https://api.github.com/repos/roc-lang/roc/releases/tags/${VERSION}"
+          DIR_PATTERN="roc-${PLATFORM}-*"
         else
-          RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/latest"
+          RELEASE_NAME="nightly release"
+          DIR_PATTERN="roc_nightly-${PLATFORM}-*"
+          if [[ -n "$NIGHTLY_TAG" ]]; then
+            # Pin to a specific, immutable nightly release tag
+            echo "Pinning to nightly tag: $NIGHTLY_TAG"
+            RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/tags/${NIGHTLY_TAG}"
+          else
+            RELEASE_API_URL="https://api.github.com/repos/roc-lang/nightlies/releases/latest"
+          fi
         fi
         DOWNLOAD_URL=$(curl -fsSL "${AUTH_HEADER[@]}" "$RELEASE_API_URL" | \
           jq -r ".assets[] | select(.name | contains(\"${PLATFORM}\")) | select(.name | endswith(\".${ASSET_EXT}\")) | .browser_download_url")
         if [[ -z "$DOWNLOAD_URL" ]]; then
-          if [[ -n "$NIGHTLY_TAG" ]]; then
-            echo "Error: Could not find a nightly release for platform '$PLATFORM' under tag '$NIGHTLY_TAG'"
-            echo "Make sure the tag exists at https://github.com/roc-lang/nightlies/releases and has an asset for your platform."
-          else
-            echo "Error: Could not find a nightly release for platform: $PLATFORM"
+          echo "Error: Could not find a $RELEASE_NAME asset for platform: $PLATFORM"
+          if [[ "$VERSION" != "nightly" ]]; then
+            echo "Make sure the tag exists at https://github.com/roc-lang/roc/releases and has an asset for your platform."
+          elif [[ -n "$NIGHTLY_TAG" ]]; then
+            echo "Make sure the tag '$NIGHTLY_TAG' exists at https://github.com/roc-lang/nightlies/releases and has an asset for your platform."
           fi
           exit 1
         fi

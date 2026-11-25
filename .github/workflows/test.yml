@@ -12,20 +12,16 @@ jobs:
         include:
           - os: Linux
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
             version: nightly
           - os: Linux
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
             version: nightly
             nightly-tag: nightly-2026-June-27-127861d
           - os: Linux
             arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
+            runner: ubuntu-26.04-arm
             version: nightly
           - os: macOS
             arch: arm64
@@ -47,6 +43,26 @@ jobs:
             arch: x86_64
             runner: windows-2025
             version: nightly
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-26.04
+            version: 0.1.0_RC1
+          - os: Linux
+            arch: arm64
+            runner: ubuntu-26.04-arm
+            version: 0.1.0_RC1
+          - os: macOS
+            arch: arm64
+            runner: macos-latest
+            version: 0.1.0_RC1
+          - os: macOS
+            arch: x86_64
+            runner: macos-26-intel
+            version: 0.1.0_RC1
+          - os: Windows
+            arch: x86_64
+            runner: windows-2025
+            version: 0.1.0_RC1
 
     steps:
       - name: Checkout repository
@@ -69,16 +85,17 @@ jobs:
         run: roc main.roc
 
   # Jobs run one after another: `save` fills the cache, `restore` must then
-  # restore it with an exact key match and `roc test` must report `(cached)`.
+  # restore it with an exact key match and `roc check` must report the module as cached.
   cache:
     name: Cache ${{ matrix.step }} on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         include:
-          - { os: Linux, runner: ubuntu-latest, step: save }
-          - { os: Linux, runner: ubuntu-latest, step: restore }
+          - { os: Linux, runner: ubuntu-26.04, step: save }
+          - { os: Linux, runner: ubuntu-26.04, step: restore }
           - { os: macOS, runner: macos-latest, step: save }
           - { os: macOS, runner: macos-latest, step: restore }
           - { os: Windows, runner: windows-2025, step: save }
@@ -99,6 +116,7 @@ jobs:
         shell: bash
         run: |
           printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
+          roc check CacheSmoke.roc --verbose | tee check-output.txt
           roc test CacheSmoke.roc | tee test-output.txt
 
       - name: Check that roc wrote to the cache
@@ -115,7 +133,7 @@ jobs:
           CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
         run: |
           [[ "$CACHE_HIT" == "true" ]] || { echo "Error: expected an exact cache hit (cache-hit='$CACHE_HIT')"; exit 1; }
-          grep -q "(cached)" test-output.txt || { echo "Error: roc test did not use the restored cache"; exit 1; }
+          grep -q "1 cached, 0 built" check-output.txt || { echo "Error: roc did not use the restored cache"; exit 1; }
 
       # Save even when an earlier step failed; the automatic save only runs on success.
       - name: Save Roc cache
